@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import requests
 from flask import Flask, request, jsonify
@@ -8,8 +8,8 @@ app = Flask(__name__)
 # =============================================
 # CONFIGURACION - Rellena estos valores
 # =============================================
-VERIFY_TOKEN = "3C921lh7p8yMMFbXSUkM74N1PL8_6y6sCJNuHUgcL3K5gJGwZ"  # Puedes cambiarlo por cualquier texto
-PAGE_ACCESS_TOKEN = "EAATfSZAIxd48BScJlFrNOEASaBpk4txZCmd8ZCblB9ZBEYzLX7EX5mKxKMrdr2xHWUgku5jPvgpdPf9RYYe3yX1ZBKPGFQ9tgupwh66pJ2x1IVtwZCTpQptgaxxM4ThCoqZATko4U1hVMJdFubjOp6DaZClefiRg1oCkgZBkQaMS3si7kGL1Ph6WqVA0Wg61oU7vtWPSGXQZDZD"  # Lo obtienes de Meta for Developers
+VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "mi_token_secreto_123")
+PAGE_ACCESS_TOKEN = os.environ.get("PAGE_ACCESS_TOKEN", "EAATfSZAIxd48BScJlFrNOEASaBpk4txZCmd8ZCblB9ZBEYzLX7EX5mKxKMrdr2xHWUgku5jPvgpdPf9RYYe3yX1ZBKPGFQ9tgupwh66pJ2x1IVtwZCTpQptgaxxM4ThCoqZATko4U1hVMJdFubjOp6DaZClefiRg1oCkgZBkQaMS3si7kGL1Ph6WqVA0Wg61oU7vtWPSGXQZDZD")  # Lo obtienes de Meta for Developers
 # =============================================
 
 
