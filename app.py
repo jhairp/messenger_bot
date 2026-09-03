@@ -1,16 +1,56 @@
-import os
+﻿import os
 import json
 import requests
+import google.generativeai as genai
 from flask import Flask, request, jsonify
+from respuestas import RESPUESTAS, RESPUESTA_DEFAULT
 
 app = Flask(__name__)
 
 # =============================================
-# CONFIGURACION - Rellena estos valores
+# CONFIGURACION - Variables de entorno en Render
 # =============================================
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "mi_token_secreto_123")
-PAGE_ACCESS_TOKEN = os.environ.get("PAGE_ACCESS_TOKEN", "EAATfSZAIxd48BScJlFrNOEASaBpk4txZCmd8ZCblB9ZBEYzLX7EX5mKxKMrdr2xHWUgku5jPvgpdPf9RYYe3yX1ZBKPGFQ9tgupwh66pJ2x1IVtwZCTpQptgaxxM4ThCoqZATko4U1hVMJdFubjOp6DaZClefiRg1oCkgZBkQaMS3si7kGL1Ph6WqVA0Wg61oU7vtWPSGXQZDZD")  # Lo obtienes de Meta for Developers
+PAGE_ACCESS_TOKEN = os.environ.get("PAGE_ACCESS_TOKEN", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 # =============================================
+
+# Configurar Gemini si hay API key
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    modelo_ia = genai.GenerativeModel("gemini-1.5-flash")
+else:
+    modelo_ia = None
+
+CONTEXTO_BOT = """
+Eres un asistente de ventas de cuentas de streaming compartidas para la tienda "Streaming Free".
+Vendes: Netflix, Disney+, Max (HBO), Prime Video y Crunchyroll a precios economicos.
+Responde siempre en espanol, de forma breve, amigable y enfocada en ayudar al cliente a comprar.
+Si no sabes algo especifico, di que un asesor los contactara pronto.
+"""
+
+
+def buscar_respuesta_fija(texto):
+    """Busca si el mensaje coincide con alguna palabra clave del diccionario."""
+    texto = texto.lower().strip()
+    for palabras_clave, respuesta in RESPUESTAS.items():
+        for palabra in palabras_clave:
+            if palabra in texto:
+                return respuesta
+    return None
+
+
+def preguntar_ia(texto):
+    """Usa Gemini como respaldo si no hay respuesta fija."""
+    if not modelo_ia:
+        return RESPUESTA_DEFAULT
+    try:
+        prompt = f"{CONTEXTO_BOT}\n\nCliente dice: {texto}"
+        respuesta = modelo_ia.generate_content(prompt)
+        return respuesta.text
+    except Exception as e:
+        print(f"Error con Gemini: {e}")
+        return RESPUESTA_DEFAULT
 
 
 def send_message(recipient_id, message_text):
@@ -29,50 +69,42 @@ def send_message(recipient_id, message_text):
 
 
 def handle_message(sender_id, message):
-    """Logica principal para responder mensajes."""
+    """Logica principal: primero busca respuesta fija, luego usa IA."""
     if "text" in message:
-        text = message["text"].lower()
-        print(f"Mensaje recibido de {sender_id}: {text}")
+        texto = message["text"]
+        print(f"Mensaje de {sender_id}: {texto}")
 
-        # --- Define aqui las respuestas de tu bot ---
-        if "hola" in text or "hello" in text:
-            send_message(sender_id, "Hola! Soy un bot. En que puedo ayudarte?")
-        elif "ayuda" in text or "help" in text:
-            send_message(sender_id, "Puedo responder mensajes basicos. Intenta saludarme!")
-        elif "adios" in text or "bye" in text:
-            send_message(sender_id, "Hasta luego! Fue un placer charlar contigo.")
-        else:
-            # Respuesta por defecto: eco (repite el mensaje)
-            send_message(sender_id, f"Recibi tu mensaje: '{message['text']}'")
+        # 1. Buscar respuesta fija
+        respuesta = buscar_respuesta_fija(texto)
+
+        # 2. Si no hay, usar IA de Gemini
+        if not respuesta:
+            print("Sin respuesta fija, usando IA...")
+            respuesta = preguntar_ia(texto)
+
+        send_message(sender_id, respuesta)
 
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
-    """Facebook verifica el webhook con una solicitud GET."""
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        print("Webhook verificado correctamente!")
+        print("Webhook verificado!")
         return challenge, 200
-    else:
-        print("Error de verificacion del webhook.")
-        return "Forbidden", 403
+    return "Forbidden", 403
 
 
 @app.route("/webhook", methods=["POST"])
 def receive_message():
-    """Recibe los eventos (mensajes) desde Facebook."""
     data = request.get_json()
-    print(f"Evento recibido: {json.dumps(data, indent=2)}")
 
     if data.get("object") == "page":
         for entry in data.get("entry", []):
             for event in entry.get("messaging", []):
                 sender_id = event["sender"]["id"]
-
-                # Solo procesamos mensajes de texto (no eventos de lectura, etc.)
                 if "message" in event and not event["message"].get("is_echo"):
                     handle_message(sender_id, event["message"])
 
@@ -80,5 +112,5 @@ def receive_message():
 
 
 if __name__ == "__main__":
-    print("Bot de Messenger iniciado en http://localhost:5000")
+    print("Bot de Streaming iniciado en http://localhost:5000")
     app.run(port=5000, debug=True)
