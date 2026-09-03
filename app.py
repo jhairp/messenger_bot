@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import requests
 from flask import Flask, request, jsonify
@@ -22,8 +22,8 @@ def send_request(payload):
         headers={"Content-Type": "application/json"},
         json=payload
     )
-    if response.status_code != 200:
-        print(f"Error: {response.text}")
+    # Log SIEMPRE la respuesta de Facebook para diagnosticar
+    print(f"[FB API] Status: {response.status_code} | Respuesta: {response.text}")
     return response
 
 
